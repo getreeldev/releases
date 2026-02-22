@@ -1,0 +1,65 @@
+name: 'Reel Security Scan'
+description: 'Scan container images for vulnerabilities, generate SBOMs, and detect malware'
+
+inputs:
+  image:
+    description: 'Container image to scan'
+    required: true
+  scan-types:
+    description: 'Comma-separated scan types: sbom, cbom, sarif, malware'
+    default: 'sbom'
+  format:
+    description: 'SBOM format: cyclonedx, spdx, spdx-json'
+    default: 'cyclonedx'
+  output-dir:
+    description: 'Directory for scan outputs'
+    default: 'reel-results'
+  reel-version:
+    description: 'Reel CLI version (tag name, e.g. v0.6.4)'
+    default: 'latest'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up reel
+      shell: bash
+      run: |
+        if [ "${{ inputs.reel-version }}" = "latest" ]; then
+          URL="https://github.com/getreeldev/releases/releases/latest/download/reel_linux_amd64.tar.gz"
+        else
+          URL="https://github.com/getreeldev/releases/releases/download/${{ inputs.reel-version }}/reel_linux_amd64.tar.gz"
+        fi
+        curl -sL "$URL" | tar xz
+        sudo mv reel /usr/local/bin/
+        reel version
+
+    - name: Create output directory
+      shell: bash
+      run: mkdir -p ${{ inputs.output-dir }}
+
+    - name: Run scans
+      shell: bash
+      run: |
+        IFS=',' read -ra TYPES <<< "${{ inputs.scan-types }}"
+        for type in "${TYPES[@]}"; do
+          type=$(echo "$type" | xargs)
+          case "$type" in
+            sbom)
+              reel export sbom --image "${{ inputs.image }}" \
+                -f "${{ inputs.format }}" \
+                -o "${{ inputs.output-dir }}/sbom.json"
+              ;;
+            cbom)
+              reel export cbom --image "${{ inputs.image }}" \
+                -o "${{ inputs.output-dir }}/cbom.json"
+              ;;
+            sarif)
+              reel export sarif --image "${{ inputs.image }}" \
+                -o "${{ inputs.output-dir }}/results.sarif"
+              ;;
+            malware)
+              reel export malware --image "${{ inputs.image }}" \
+                -o "${{ inputs.output-dir }}/malware.json"
+              ;;
+          esac
+        done
