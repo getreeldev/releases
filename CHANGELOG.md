@@ -16,6 +16,12 @@ All notable changes to Reel are documented here.
 - **ClamAV auto-download on Linux arm64** — downloads the official `aarch64.deb`. Previously required manual installation.
 - **CVD certificate handling** — uses `CVD_CERTS_DIR` environment variable instead of writing to system paths. No sudo required for ClamAV database updates.
 - **Homebrew formula** — now includes `linux/arm64` alongside `darwin/arm64` and `linux/amd64`.
+- **Test fixture optimization** — pre-pull images at test start, `imagePullPolicy: IfNotPresent` on all fixtures, CRI-O registry config fix.
+
+### Bug Fixes
+
+- **Helm chart image tags** — init container tags now use `v` prefix to match Docker Hub (was causing `ImagePullBackOff` on `init-criu`).
+- **Helm chart publish** — only updates `getreel/*` image tags, no longer overwrites `clamav/clamav` tag.
 
 ## v1.0.1
 
