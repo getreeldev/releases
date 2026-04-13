@@ -11,12 +11,38 @@ inputs:
   format:
     description: 'SBOM format: cyclonedx, spdx, spdx-json'
     default: 'cyclonedx'
+  scanners:
+    description: 'Trivy scanners: vuln,secret,license,config,all (comma-separated)'
+    default: ''
+  severity:
+    description: 'Trivy severity filter: LOW,MEDIUM,HIGH,CRITICAL (comma-separated)'
+    default: ''
   output-dir:
     description: 'Directory for scan outputs'
     default: 'reel-results'
   reel-version:
-    description: 'Reel CLI version (tag name, e.g. v0.6.4)'
+    description: 'Reel CLI version (tag name, e.g. v1.0.0)'
     default: 'latest'
+  fail-on-findings:
+    description: 'Fail if any findings survive the scan filters (true/false)'
+    default: 'false'
+
+outputs:
+  sbom-file:
+    description: 'Path to SBOM output file'
+    value: ${{ steps.scan.outputs.sbom-file }}
+  sarif-file:
+    description: 'Path to SARIF output file'
+    value: ${{ steps.scan.outputs.sarif-file }}
+  malware-file:
+    description: 'Path to malware scan output file'
+    value: ${{ steps.scan.outputs.malware-file }}
+  vuln-count:
+    description: 'Number of vulnerabilities found after filtering'
+    value: ${{ steps.gate.outputs.vuln-count }}
+  malware-count:
+    description: 'Number of infected files found'
+    value: ${{ steps.gate.outputs.malware-count }}
 
 runs:
   using: 'composite'
@@ -38,8 +64,18 @@ runs:
       run: mkdir -p ${{ inputs.output-dir }}
 
     - name: Run scans
+      id: scan
       shell: bash
       run: |
+        SCANNER_FLAGS=""
+        if [ -n "${{ inputs.scanners }}" ]; then
+          SCANNER_FLAGS="--scanners ${{ inputs.scanners }}"
+        fi
+        SEVERITY_FLAGS=""
+        if [ -n "${{ inputs.severity }}" ]; then
+          SEVERITY_FLAGS="--severity ${{ inputs.severity }}"
+        fi
+
         IFS=',' read -ra TYPES <<< "${{ inputs.scan-types }}"
         for type in "${TYPES[@]}"; do
           type=$(echo "$type" | xargs)
@@ -47,7 +83,9 @@ runs:
             sbom)
               reel export sbom --image "${{ inputs.image }}" \
                 -f "${{ inputs.format }}" \
+                $SCANNER_FLAGS $SEVERITY_FLAGS \
                 -o "${{ inputs.output-dir }}/sbom.json"
+              echo "sbom-file=${{ inputs.output-dir }}/sbom.json" >> "$GITHUB_OUTPUT"
               ;;
             cbom)
               reel export cbom --image "${{ inputs.image }}" \
@@ -55,11 +93,45 @@ runs:
               ;;
             sarif)
               reel export sarif --image "${{ inputs.image }}" \
+                $SCANNER_FLAGS $SEVERITY_FLAGS \
                 -o "${{ inputs.output-dir }}/results.sarif"
+              echo "sarif-file=${{ inputs.output-dir }}/results.sarif" >> "$GITHUB_OUTPUT"
               ;;
             malware)
               reel export malware --image "${{ inputs.image }}" \
                 -o "${{ inputs.output-dir }}/malware.json"
+              echo "malware-file=${{ inputs.output-dir }}/malware.json" >> "$GITHUB_OUTPUT"
               ;;
           esac
         done
+
+    - name: Evaluate findings
+      id: gate
+      if: inputs.fail-on-findings == 'true'
+      shell: bash
+      run: |
+        FAILED=0
+
+        # Check SBOM for vulnerabilities that survived filters
+        if [ -f "${{ inputs.output-dir }}/sbom.json" ]; then
+          COUNT=$(jq '.vulnerabilities // [] | length' "${{ inputs.output-dir }}/sbom.json")
+          echo "vuln-count=$COUNT" >> "$GITHUB_OUTPUT"
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error::Found $COUNT vulnerabilities"
+            FAILED=1
+          fi
+        fi
+
+        # Check malware scan for infected files
+        if [ -f "${{ inputs.output-dir }}/malware.json" ]; then
+          COUNT=$(jq '.summary.infected_count // 0' "${{ inputs.output-dir }}/malware.json")
+          echo "malware-count=$COUNT" >> "$GITHUB_OUTPUT"
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error::Found $COUNT infected files"
+            FAILED=1
+          fi
+        fi
+
+        if [ "$FAILED" -eq 1 ]; then
+          exit 1
+        fi
