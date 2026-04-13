@@ -2,6 +2,16 @@
 
 All notable changes to Reel are documented here.
 
+## v1.2.0 — GitHub Action
+
+### New Features
+
+- **`fail-on-findings` input** — fail the workflow step if any vulnerabilities or malware survive the scan filters. Scans always complete and produce artifacts; the gate evaluates after.
+- **`scanners` input** — passthrough to Trivy `--scanners` (vuln, secret, license, config, all).
+- **`severity` input** — passthrough to Trivy `--severity` (LOW, MEDIUM, HIGH, CRITICAL).
+- **Structured outputs** — `sbom-file`, `sarif-file`, `malware-file` (paths), `vuln-count`, `malware-count` (counts).
+- **Local test script** — `test-action.sh` validates gate logic in Docker against real scans.
+
 ## v1.1.0
 
 ### New Features
