@@ -7,6 +7,7 @@ All notable changes to Reel are documented here.
 ### GitHub Action
 
 - **`local` input** — new pass-through for `reel export --local`. When `true`, image scans are restricted to the runner's container daemon and fail fast if the image isn't present. Default is `false`; with no flag set, reel CLI v1.3+ already looks locally first and falls back to the registry — so CI workflows that build an image in the runner and immediately scan it no longer need any special configuration.
+- **`ignore-unfixed` input** — new pass-through for `reel export --ignore-unfixed`. Applied to `sbom` and `sarif` scan types only (cbom and malware don't carry a "fixed" concept). When `true`, unfixed HIGH/CRITICAL CVEs do not trip the `fail-on-findings` gate — useful for release pipelines that want to block on fixable issues without breaking on upstream patch lag.
 
 ### Compatibility
 
