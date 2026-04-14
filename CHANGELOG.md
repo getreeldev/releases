@@ -2,6 +2,20 @@
 
 All notable changes to Reel are documented here.
 
+## v1.3.0
+
+### GitHub Action
+
+- **`local` input** — new pass-through for `reel export --local`. When `true`, image scans are restricted to the runner's container daemon and fail fast if the image isn't present. Default is `false`; with no flag set, reel CLI v1.3+ already looks locally first and falls back to the registry — so CI workflows that build an image in the runner and immediately scan it no longer need any special configuration.
+
+### Compatibility
+
+- Requires reel CLI `v1.3.0` or later in the runner (delivered via `reel-version: latest` by default). Earlier CLIs on `cbom` / `malware` don't recognize `--local`; setting `local: true` against a pinned older version will error.
+
+### Housekeeping
+
+- Removed `test-action.sh` — the jq-based gate tests duplicated trivial expressions and the reel-backed tests depended on drifting upstream CVE state; nothing in CI invoked the script. End-to-end validation now rides on downstream callers (e.g. vex-hub's release workflow).
+
 ## v1.2.0
 
 ### Standalone CLI — macOS container scanning
@@ -16,7 +30,6 @@ All notable changes to Reel are documented here.
 - **`scanners` input** — passthrough to Trivy `--scanners` (vuln, secret, license, config, all).
 - **`severity` input** — passthrough to Trivy `--severity` (LOW, MEDIUM, HIGH, CRITICAL).
 - **Structured outputs** — `sbom-file`, `sarif-file`, `malware-file` (paths), `vuln-count`, `malware-count` (counts).
-- **Local test script** — `test-action.sh` validates gate logic in Docker against real scans.
 
 ### Notes
 

@@ -26,6 +26,9 @@ inputs:
   fail-on-findings:
     description: 'Fail if any findings survive the scan filters (true/false)'
     default: 'false'
+  local:
+    description: 'Restrict to local image only (container daemon); fail if not found. Without this, reel looks locally first and falls back to the registry.'
+    default: 'false'
 
 outputs:
   sbom-file:
@@ -75,6 +78,10 @@ runs:
         if [ -n "${{ inputs.severity }}" ]; then
           SEVERITY_FLAGS="--severity ${{ inputs.severity }}"
         fi
+        LOCAL_FLAG=""
+        if [ "${{ inputs.local }}" = "true" ]; then
+          LOCAL_FLAG="--local"
+        fi
 
         IFS=',' read -ra TYPES <<< "${{ inputs.scan-types }}"
         for type in "${TYPES[@]}"; do
@@ -83,22 +90,24 @@ runs:
             sbom)
               reel export sbom --image "${{ inputs.image }}" \
                 -f "${{ inputs.format }}" \
-                $SCANNER_FLAGS $SEVERITY_FLAGS \
+                $SCANNER_FLAGS $SEVERITY_FLAGS $LOCAL_FLAG \
                 -o "${{ inputs.output-dir }}/sbom.json"
               echo "sbom-file=${{ inputs.output-dir }}/sbom.json" >> "$GITHUB_OUTPUT"
               ;;
             cbom)
               reel export cbom --image "${{ inputs.image }}" \
+                $LOCAL_FLAG \
                 -o "${{ inputs.output-dir }}/cbom.json"
               ;;
             sarif)
               reel export sarif --image "${{ inputs.image }}" \
-                $SCANNER_FLAGS $SEVERITY_FLAGS \
+                $SCANNER_FLAGS $SEVERITY_FLAGS $LOCAL_FLAG \
                 -o "${{ inputs.output-dir }}/results.sarif"
               echo "sarif-file=${{ inputs.output-dir }}/results.sarif" >> "$GITHUB_OUTPUT"
               ;;
             malware)
               reel export malware --image "${{ inputs.image }}" \
+                $LOCAL_FLAG \
                 -o "${{ inputs.output-dir }}/malware.json"
               echo "malware-file=${{ inputs.output-dir }}/malware.json" >> "$GITHUB_OUTPUT"
               ;;
