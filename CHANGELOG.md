@@ -2,15 +2,26 @@
 
 All notable changes to Reel are documented here.
 
-## v1.2.0 — GitHub Action
+## v1.2.0
 
-### New Features
+### Standalone CLI — macOS container scanning
+
+- **Scan running containers on macOS.** `reel export sbom|cbom|malware <container>` now works against Docker Desktop, OrbStack, Colima, and Rancher Desktop. Previously the container's overlay filesystem lived inside the Linux VM and wasn't reachable from the host. The CLI now uses the Docker API as a fallback when direct filesystem access isn't available — `docker commit` + `docker save` + `trivy image --input` for SBOMs (preserves the writable layer); `CopyFromContainer(/)` + safe tar extract for CBOM and malware. Linux behavior is unchanged: GraphDriver / `/proc/{pid}/root` remain the fast path.
+- **Auto-detection of Docker socket on macOS.** Probes `~/.orbstack/run/docker.sock`, `~/.docker/run/docker.sock`, `~/.colima/default/docker.sock`, `~/.rd/docker.sock`. `DOCKER_HOST=unix://...` is now honored on all platforms.
+- **Intel Mac (darwin/amd64) binary.** `reel_darwin_amd64.tar.gz` ships alongside `reel_darwin_arm64.tar.gz`. `brew install getreeldev/tap/reel` now works on both Intel and Apple Silicon Macs.
+
+### GitHub Action
 
 - **`fail-on-findings` input** — fail the workflow step if any vulnerabilities or malware survive the scan filters. Scans always complete and produce artifacts; the gate evaluates after.
 - **`scanners` input** — passthrough to Trivy `--scanners` (vuln, secret, license, config, all).
 - **`severity` input** — passthrough to Trivy `--severity` (LOW, MEDIUM, HIGH, CRITICAL).
 - **Structured outputs** — `sbom-file`, `sarif-file`, `malware-file` (paths), `vuln-count`, `malware-count` (counts).
 - **Local test script** — `test-action.sh` validates gate logic in Docker against real scans.
+
+### Notes
+
+- `reel export checkpoint|frame|memory` still require agent mode on Linux — they need CRIU and kernel access that cannot be emulated via the Docker API.
+- Runtime tar extraction is conservative: zip-slip rejected, absolute/`..` symlinks skipped, device nodes skipped, setuid bits stripped, 5 GiB size cap.
 
 ## v1.1.0
 
