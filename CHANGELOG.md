@@ -4,18 +4,20 @@ All notable changes to Reel are documented here.
 
 ## v1.3.0
 
+Ships alongside reel CLI v1.3.0. Two new pass-through inputs surface CLI flags that just landed on the reel side, plus a dead-script cleanup.
+
 ### GitHub Action
 
-- **`local` input** — new pass-through for `reel export --local`. When `true`, image scans are restricted to the runner's container daemon and fail fast if the image isn't present. Default is `false`; with no flag set, reel CLI v1.3+ already looks locally first and falls back to the registry — so CI workflows that build an image in the runner and immediately scan it no longer need any special configuration.
-- **`ignore-unfixed` input** — new pass-through for `reel export --ignore-unfixed`. Applied to `sbom` and `sarif` scan types only (cbom and malware don't carry a "fixed" concept). When `true`, unfixed HIGH/CRITICAL CVEs do not trip the `fail-on-findings` gate — useful for release pipelines that want to block on fixable issues without breaking on upstream patch lag.
+- **`local` input** — pass-through for `reel export --local`. When `true`, image scans are restricted to the runner's container daemon and fail fast if the image isn't present. Default is `false`. With no flag set, reel CLI v1.3.0's new local-first-with-fallback default already finds images built into the runner's daemon, so CI workflows that build-then-scan no longer need any special configuration.
+- **`ignore-unfixed` input** — pass-through for `reel export --ignore-unfixed`. Applied to `sbom` and `sarif` scan types only (cbom and malware don't carry a "fixed" concept). When `true`, unfixed HIGH/CRITICAL CVEs don't trip the `fail-on-findings` gate — useful for release pipelines that want to block on fixable issues without breaking on upstream patch lag.
 
 ### Compatibility
 
-- Requires reel CLI `v1.3.0` or later in the runner (delivered via `reel-version: latest` by default). Earlier CLIs on `cbom` / `malware` don't recognize `--local`; setting `local: true` against a pinned older version will error.
+- Requires reel CLI v1.3.0 or later in the runner (delivered via `reel-version: latest` by default). Earlier CLIs on `cbom` / `malware` don't recognize `--local`; setting `local: true` against a pinned older version will error.
 
-### Housekeeping
+### Removed
 
-- Removed `test-action.sh` — the jq-based gate tests duplicated trivial expressions and the reel-backed tests depended on drifting upstream CVE state; nothing in CI invoked the script. End-to-end validation now rides on downstream callers (e.g. vex-hub's release workflow).
+- `test-action.sh` deleted. The jq-based gate tests duplicated trivial expressions and the reel-backed tests depended on drifting upstream CVE state; nothing in CI invoked the script. End-to-end validation now rides on downstream callers (e.g. vex-hub's release workflow).
 
 ## v1.2.0
 
