@@ -2,6 +2,30 @@
 
 All notable changes to Reel are documented here.
 
+## v1.4.0
+
+Overhauls the GitHub Action's output and closes the SARIF loop with GitHub Code Scanning.
+
+### GitHub Action
+
+- **Scan summary on the run page** — every run now appends a markdown summary to `$GITHUB_STEP_SUMMARY` covering SBOM, SARIF, CBOM, and malware scans. Shows per-scan findings, status (`[PASS]` / `[FAIL]` / `[WARN]` / `[INFO]`), and the top vulnerabilities by severity when findings exist. Runs on every invocation — no more bare green-check pass with zero visibility, no more grep-the-artifact JSON on fail.
+- **SARIF → Code Scanning** — when `scan-types` includes `sarif`, findings now upload to the repo's Security tab via `github/codeql-action/upload-sarif@v3`. Enables dismissal (persists across runs via GCS fingerprinting), PR-level gating through the "Code Scanning results" status check (configurable severity threshold in repo settings + branch protection), and cross-scanner visibility alongside CodeQL. **Requires callers to grant `security-events: write` permission** on the job.
+- **SBOM severity now reflects max across all rating sources** — CycloneDX emits per-source severity ratings (nvd, alma, redhat, ubuntu, …). Summary previously implicitly picked the first source, which was non-deterministic and under-reported (e.g. a CVE rated `medium` by one source and `critical` by another showed as `medium`). Now shows the max severity across sources.
+- **`scanners` input default flipped** from `''` to `'vuln'`. Without an explicit scanner, reel's SBOM emits zero vulns regardless of image content; the previous default silently produced ungated pipelines. Consumers who set `scanners:` explicitly are unaffected.
+- **New `cbom-file` output** for symmetry with `sbom-file` / `sarif-file` / `malware-file`.
+- **`vuln-count` and `malware-count` outputs now emit on every run** regardless of `fail-on-findings`. Previously they were only emitted when `fail-on-findings: true`.
+
+### README
+
+- Required permissions documented for SARIF consumers.
+- Two-layer gating (workflow gate + PR gate) explained.
+- Outputs table added.
+
+### Compatibility
+
+- Callers using `scan-types: sarif` must add `security-events: write` to their job permissions. Without it, the new upload step fails.
+- Callers relying on `scanners: ''` (explicit empty) to skip vuln scanning should now pass the scan types they want (e.g. `scanners: secret,license`); the default behavior is now to scan vulns.
+
 ## v1.3.0
 
 Ships alongside reel CLI v1.3.0. Two new pass-through inputs surface CLI flags that just landed on the reel side, plus a dead-script cleanup.
